@@ -1,9 +1,33 @@
+import fs from "fs";
 import jsonfile from "jsonfile";
 import moment from "moment";
 import simpleGit from "simple-git";
 
 const path = "./data.json";
 const git = simpleGit();
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const safeGitAddAndCommit = async (filePath, dateStr, maxRetries = 5) => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            await git.add([filePath]);
+            await git.commit(dateStr, { "--date": dateStr });
+            return;
+        } catch (err) {
+            const isLockError = err && err.message && err.message.includes("index.lock");
+            if (isLockError && attempt < maxRetries) {
+                await sleep(100 * attempt);
+                const lockFile = "./.git/index.lock";
+                if (fs.existsSync(lockFile)) {
+                    try { fs.unlinkSync(lockFile); } catch {}
+                }
+            } else {
+                throw err;
+            }
+        }
+    }
+};
 
 // Configuration for realistic contribution graph
 const CONFIG = {
@@ -89,8 +113,7 @@ const run = async () => {
             for (const dateStr of timestamps) {
                 const data = { date: dateStr };
                 jsonfile.writeFileSync(path, data);
-                await git.add([path]);
-                await git.commit(dateStr, { "--date": dateStr });
+                await safeGitAddAndCommit(path, dateStr);
                 totalCommits++;
             }
         } else {
