@@ -11,9 +11,10 @@ const CONFIG = {
     startDate: "2026-01-01",
     endDate: "2026-12-31",
 
-    // Chance of having ANY commits on a given day
+    // Weekend settings: do not fill weekend days (Saturday & Sunday)
+    skipWeekends: true, // If true, weekend days will never receive any commits
     weekdayActivityProbability: 0.60, // 60% chance on Mon-Fri (~40% empty days)
-    weekendActivityProbability: 0.20, // 20% chance on Sat-Sun (~80% empty weekends)
+    weekendActivityProbability: 0.0, // 0% chance on Sat-Sun (completely empty)
 
     // Distribution of commit count on active days to get all shades of green
     getCommitsCount() {
@@ -63,6 +64,17 @@ const run = async () => {
     while (currentDate.isSameOrBefore(endDate)) {
         totalDays++;
         const isWeekend = (currentDate.day() === 0 || currentDate.day() === 6);
+
+        // Never fill weekend days (Saturday & Sunday)
+        if (isWeekend && CONFIG.skipWeekends) {
+            emptyDays++;
+            if (totalDays % 30 === 0) {
+                console.log(`Progress: Evaluated ${totalDays} days (${activeDays} active, ${emptyDays} empty, ${totalCommits} commits)...`);
+            }
+            currentDate.add(1, "day");
+            continue;
+        }
+
         const probability = isWeekend
             ? CONFIG.weekendActivityProbability
             : CONFIG.weekdayActivityProbability;
